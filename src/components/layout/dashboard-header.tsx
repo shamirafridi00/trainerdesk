@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signOut } from 'next-auth/react';
 import { Menu, Bell, User, Settings, CreditCard, HelpCircle, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,26 +28,12 @@ export function DashboardHeader({ user, onMenuClick }: DashboardHeaderProps) {
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const handleLogout = async () => {
-    try {
-      setIsLoggingOut(true);
+  const handleLogout = () => {
+    setIsLoggingOut(true);
+    toast.success('Logging out...');
 
-      // Sign out with redirect option
-      await signOut({
-        redirect: true,
-        callbackUrl: '/login'
-      });
-
-      // Note: Code below won't execute if redirect: true
-      // This is a fallback in case redirect fails
-      toast.success('Logged out successfully');
-      router.push('/login');
-      router.refresh();
-    } catch (error) {
-      console.error('Logout error:', error);
-      toast.error('Failed to log out');
-      setIsLoggingOut(false);
-    }
+    // Use NextAuth's built-in signout endpoint with callback URL
+    window.location.href = '/api/auth/signout?callbackUrl=/login';
   };
 
   const userInitials = user.name
