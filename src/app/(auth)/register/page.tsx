@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 import Link from 'next/link';
 import { RegisterSchema, RegisterInput } from '@/lib/validations/auth';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
+      // Step 1: Register the user
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: {
@@ -55,8 +57,25 @@ export default function RegisterPage() {
         return;
       }
 
-      toast.success('Account created successfully! Please sign in.');
-      router.push('/login');
+      // Step 2: Auto-login the user
+      toast.success('Account created successfully! Logging you in...');
+
+      const signInResult = await signIn('credentials', {
+        email: data.email,
+        password: data.password,
+        redirect: false,
+      });
+
+      if (signInResult?.error) {
+        toast.error('Registration successful but auto-login failed. Please login manually.');
+        router.push('/login');
+        return;
+      }
+
+      // Step 3: Redirect to dashboard
+      toast.success('Welcome to TrainerDesk!');
+      router.push('/dashboard');
+      router.refresh();
     } catch (error) {
       console.error('Registration error:', error);
       toast.error('An error occurred during registration');
