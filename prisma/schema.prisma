@@ -56,6 +56,7 @@ model Trainer {
   subdomain         String            @unique
   customDomain      String?           @unique
   bio               String?
+  phone             String?
   profilePhoto      String?
   timezone          String            @default("UTC")
 
