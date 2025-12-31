@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { LoginSchema, LoginInput } from '@/lib/validations/auth';
 import { Button } from '@/components/ui/button';
@@ -13,7 +12,6 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 
 export default function LoginPage() {
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
   const {
@@ -28,24 +26,23 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
+      // Let NextAuth handle the redirect
       const result = await signIn('credentials', {
         email: data.email,
         password: data.password,
-        redirect: false,
+        redirect: true,
+        callbackUrl: '/dashboard',
       });
 
+      // This code won't execute if redirect: true
+      // It's here as a fallback
       if (result?.error) {
         toast.error('Invalid email or password');
-        return;
+        setIsLoading(false);
       }
-
-      toast.success('Login successful!');
-      router.push('/dashboard');
-      router.refresh();
     } catch (error) {
       console.error('Login error:', error);
       toast.error('An error occurred during login');
-    } finally {
       setIsLoading(false);
     }
   };

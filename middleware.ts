@@ -16,8 +16,8 @@ export default auth((req) => {
     return NextResponse.redirect(new URL('/dashboard', req.url));
   }
 
-  // Redirect unauthenticated users to login
-  if (!isAuthenticated && !isPublicRoute && pathname.startsWith('/')) {
+  // Redirect unauthenticated users to login (only for dashboard routes)
+  if (!isAuthenticated && pathname.startsWith('/dashboard')) {
     return NextResponse.redirect(new URL('/login', req.url));
   }
 

@@ -32,14 +32,21 @@ export function DashboardHeader({ user, onMenuClick }: DashboardHeaderProps) {
   const handleLogout = async () => {
     try {
       setIsLoggingOut(true);
-      await signOut({ redirect: false });
+
+      // Sign out with redirect option
+      await signOut({
+        redirect: true,
+        callbackUrl: '/login'
+      });
+
+      // Note: Code below won't execute if redirect: true
+      // This is a fallback in case redirect fails
       toast.success('Logged out successfully');
       router.push('/login');
       router.refresh();
     } catch (error) {
       console.error('Logout error:', error);
       toast.error('Failed to log out');
-    } finally {
       setIsLoggingOut(false);
     }
   };
