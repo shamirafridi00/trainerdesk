@@ -1,15 +1,29 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { NextResponse } from 'next/server';
 
-export function middleware(request: NextRequest) {
-  const hostname = request.headers.get('host');
-  const subdomain = hostname?.split('.')[0];
+export default auth((req) => {
+  const { pathname } = req.nextUrl;
+  const isAuthenticated = !!req.auth;
 
-  // Check if subdomain exists and is not main domain
-  if (subdomain && subdomain !== 'www' && subdomain !== 'trainerdesk') {
-    // Query database for trainer with this subdomain
-    // Rewrite to dynamic route: /[subdomain]/page
-    return NextResponse.rewrite(new URL(`/pages/${subdomain}`, request.url));
+  // Public routes that don't require authentication
+  const publicRoutes = ['/login', '/register', '/forgot-password'];
+  const isPublicRoute = publicRoutes.some((route) =>
+    pathname.startsWith(route)
+  );
+
+  // Redirect authenticated users away from auth pages
+  if (isAuthenticated && isPublicRoute) {
+    return NextResponse.redirect(new URL('/dashboard', req.url));
+  }
+
+  // Redirect unauthenticated users to login
+  if (!isAuthenticated && !isPublicRoute && pathname.startsWith('/')) {
+    return NextResponse.redirect(new URL('/login', req.url));
   }
 
   return NextResponse.next();
-}
+});
+
+export const config = {
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
+};
