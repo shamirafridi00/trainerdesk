@@ -26,19 +26,24 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      // Let NextAuth handle the redirect
       const result = await signIn('credentials', {
         email: data.email,
         password: data.password,
-        redirect: true,
-        callbackUrl: '/dashboard',
+        redirect: false,
       });
 
-      // This code won't execute if redirect: true
-      // It's here as a fallback
       if (result?.error) {
         toast.error('Invalid email or password');
         setIsLoading(false);
+        return;
+      }
+
+      if (result?.ok) {
+        toast.success('Login successful!');
+        // Small delay to ensure session is established
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 100);
       }
     } catch (error) {
       console.error('Login error:', error);
