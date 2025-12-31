@@ -28,12 +28,32 @@ export function DashboardHeader({ user, onMenuClick }: DashboardHeaderProps) {
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const handleLogout = () => {
-    setIsLoggingOut(true);
-    toast.success('Logging out...');
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
 
-    // Use NextAuth's built-in signout endpoint with callback URL
-    window.location.href = '/api/auth/signout?callbackUrl=/login';
+      // Call custom logout API
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Logout failed');
+      }
+
+      // Show success message
+      toast.success('Logged out successfully!');
+
+      // Hard redirect to login page
+      window.location.href = '/login';
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Failed to log out. Please try again.');
+      setIsLoggingOut(false);
+    }
   };
 
   const userInitials = user.name
