@@ -60,7 +60,7 @@ Establish project infrastructure, database schema, and authentication system. Th
 
 **Technical Tasks**:
 
-1. Create Neon or Supabase PostgreSQL database (free tier)
+1. Create Neon PostgreSQL database (free tier)
 2. Add `DATABASE_URL` to `.env.local`
 3. Initialize Prisma: `npx prisma init`
 4. Create complete `prisma/schema.prisma` with all models:

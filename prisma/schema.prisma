@@ -1,0 +1,200 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  PRIMARY_TRAINER
+  SUB_TRAINER
+}
+
+enum SubscriptionTier {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum NotificationType {
+  EMAIL
+  SMS
+  BOTH
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  name          String
+  role          UserRole @default(PRIMARY_TRAINER)
+
+  trainerId     String?  @unique
+  trainer       Trainer? @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([email])
+}
+
+model Trainer {
+  id                String            @id @default(cuid())
+  businessName      String
+  subdomain         String            @unique
+  customDomain      String?           @unique
+  bio               String?
+  profilePhoto      String?
+  timezone          String            @default("UTC")
+
+  subscriptionTier  SubscriptionTier  @default(FREE)
+  paddleCustomerId  String?           @unique
+  paddleSubscriptionId String?        @unique
+  subscriptionStatus String?          // active, cancelled, past_due
+  subscriptionEndsAt DateTime?
+
+  smsCredits        Int               @default(10)
+  emailCredits      Int               @default(50)
+
+  user              User?
+  primaryTrainerId  String?
+  primaryTrainer    Trainer?          @relation("SubTrainers", fields: [primaryTrainerId], references: [id], onDelete: Cascade)
+  subTrainers       Trainer[]         @relation("SubTrainers")
+
+  pages             Page[]
+  bookings          Booking[]
+  availabilities    Availability[]
+  notificationTemplates NotificationTemplate[]
+  clients           Client[]
+
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([subdomain])
+  @@index([customDomain])
+}
+
+model Page {
+  id          String   @id @default(cuid())
+  trainerId   String
+  trainer     Trainer  @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  templateId  String   // minimal, bold, professional, modern, classic
+  sections    Json     // Array of section configurations
+  published   Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([trainerId])
+}
+
+model Availability {
+  id          String   @id @default(cuid())
+  trainerId   String
+  trainer     Trainer  @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  dayOfWeek   Int      // 0-6 (Sunday-Saturday)
+  startTime   String   // "09:00"
+  endTime     String   // "17:00"
+
+  overrideDate DateTime? // Specific date override (optional)
+  isRecurring Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([trainerId, dayOfWeek])
+}
+
+model Client {
+  id          String    @id @default(cuid())
+  email       String
+  name        String
+  phone       String?
+
+  trainerId   String
+  trainer     Trainer   @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  bookings    Booking[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([email, trainerId])
+  @@index([trainerId])
+}
+
+model Booking {
+  id          String        @id @default(cuid())
+
+  trainerId   String
+  trainer     Trainer       @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  clientId    String
+  client      Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  startTime   DateTime
+  endTime     DateTime
+  duration    Int           // minutes
+  timezone    String
+
+  status      BookingStatus @default(PENDING)
+
+  notes       String?
+  cancelledAt DateTime?
+  cancelReason String?
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([trainerId, startTime])
+  @@index([clientId])
+}
+
+model NotificationTemplate {
+  id          String           @id @default(cuid())
+  trainerId   String
+  trainer     Trainer          @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  name        String           // "Booking Confirmation", "24hr Reminder"
+  type        NotificationType
+
+  subject     String?          // For emails only
+  body        String           // Template with variables
+
+  isActive    Boolean          @default(true)
+
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([trainerId])
+}
+
+model NotificationLog {
+  id          String   @id @default(cuid())
+
+  bookingId   String?
+  clientEmail String?
+  clientPhone String?
+
+  type        NotificationType
+  status      String   // sent, failed, delivered, bounced
+  provider    String   // resend, twilio
+
+  sentAt      DateTime @default(now())
+
+  @@index([bookingId])
+}
