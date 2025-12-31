@@ -1,295 +1,1081 @@
-# TrainerDesk - Detailed Epics & Iterations
+# 🎉 Outstanding Progress! Iteration 2.1 Complete
 
-Based on the comprehensive requirements and technical documentation, here are the detailed epics and iterations for building TrainerDesk. This follows the tech stack (Next.js 14+, Prisma, PostgreSQL, NextAuth.js, Paddle, Resend, Twilio) and folder structure we've defined.[1][2]
+I've verified your [TrainerDesk repository](https://github.com/shamirafridi00/trainerdesk) and confirmed that **Iteration 2.1: Dashboard Layout Components** is successfully completed with [commit c99cc1a](https://github.com/shamirafridi00/trainerdesk/commit/c99cc1aa5f43b5161a6e69cf94985db01bbe4522).[1]
 
----
+## 📊 Progress Summary
 
-## EPIC 1: Project Foundation & Authentication (Sprint 1 - Weeks 1-2)
+You've now completed **4 out of 6 iterations** across two epics:
 
-### Epic Overview
+### ✅ EPIC 1: Complete (3/3 iterations)
+- Iteration 1.1 ✅ - Project Setup & Configuration
+- Iteration 1.2 ✅ - Database Schema & Prisma Setup
+- Iteration 1.3 ✅ - NextAuth.js Configuration
 
-Establish project infrastructure, database schema, and authentication system. This epic creates the foundational architecture for all subsequent features.
+### 🔄 EPIC 2: In Progress (1/3 iterations)
+- Iteration 2.1 ✅ - Dashboard Layout Components
+- Iteration 2.2 🎯 - Dashboard Homepage & Stats Widgets (NEXT)
+- Iteration 2.3 ⏳ - Settings Pages Foundation
 
-### Iteration 1.1: Project Setup & Configuration
+***
 
-**Duration**: 2 days
+# Detailed Implementation Prompt: Iteration 2.2 - Dashboard Homepage & Stats Widgets
 
-**User Stories**:
+## Overview
+You are implementing **Iteration 2.2: Dashboard Homepage & Stats Widgets** for TrainerDesk. This iteration brings your dashboard to life with real data from the database, interactive statistics cards, upcoming bookings list, and quick action buttons. This will take approximately 3 days to complete.[1]
 
-- As a developer, I need to initialize the Next.js project so that I have a working development environment
-- As a developer, I need to configure TypeScript and ESLint so that code quality is maintained
-- As a developer, I need to set up Tailwind CSS and shadcn/ui so that I can build consistent interfaces
+## Prerequisites Verification
+Before starting, confirm the following are completed:
+- ✅ Dashboard layout with sidebar and header working
+- ✅ Database with Booking, Client, and Trainer models
+- ✅ Session management with trainerId available
+- ✅ React Query already installed (@tanstack/react-query)
 
-**Technical Tasks**:
+***
 
-1. Run `npx create-next-app@latest trainerdesk --typescript --tailwind --app`
-2. Install core dependencies:
-   ```bash
-   npm install @prisma/client prisma
-   npm install next-auth@beta @auth/prisma-adapter
-   npm install zod react-hook-form @hookform/resolvers
-   npm install date-fns date-fns-tz
-   npm install @tanstack/react-query
-   ```
-3. Initialize shadcn/ui: `npx shadcn-ui@latest init`
-4. Install shadcn components: Button, Card, Dialog, Form, Input, Select, Table, Tabs, Badge, Avatar, Toast
-5. Configure Tailwind with custom colors (blue-600 primary, gray scale)
-6. Set up folder structure following documentation architecture
-7. Create `.env.example` with required environment variables
-8. Initialize Git repository and create `.gitignore`
-9. Set up Prettier configuration for code formatting
+## Step 1: Set Up React Query Provider
 
-**Acceptance Criteria**:
+### File: `src/lib/providers/query-provider.tsx`
+Create a client component wrapper for React Query:
 
-- Development server runs without errors on `localhost:3000`
-- Tailwind CSS styling works with custom theme
-- All shadcn/ui components render correctly
-- TypeScript compilation succeeds with no errors
-- Git repository initialized with proper ignore rules
+```typescript
+'use client';
 
----
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { useState } from 'react';
 
-### Iteration 1.2: Database Schema & Prisma Setup
+export function QueryProvider({ children }: { children: React.ReactNode }) {
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 60 * 1000, // 1 minute
+            refetchOnWindowFocus: false,
+          },
+        },
+      })
+  );
 
-**Duration**: 2 days
+  return (
+    <QueryClientProvider client={queryClient}>
+      {children}
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
+  );
+}
+```
 
-**User Stories**:
+### Install React Query Devtools
 
-- As a developer, I need to define the database schema so that all models and relationships are established
-- As a developer, I need to connect to PostgreSQL so that data can be persisted
+```bash
+npm install @tanstack/react-query-devtools
+```
 
-**Technical Tasks**:
+### Update Dashboard Layout: `src/app/(dashboard)/layout.tsx`
+Wrap the dashboard content with QueryProvider:
 
-1. Create Neon PostgreSQL database (free tier)
-2. Add `DATABASE_URL` to `.env.local`
-3. Initialize Prisma: `npx prisma init`
-4. Create complete `prisma/schema.prisma` with all models:
-   - User (authentication)
-   - Trainer (business profiles)
-   - Page (landing page configurations)
-   - Availability (trainer schedules)
-   - Client (customer records)
-   - Booking (session reservations)
-   - NotificationTemplate (email/SMS templates)
-   - NotificationLog (delivery tracking)
-5. Define enums: UserRole, SubscriptionTier, BookingStatus, NotificationType
-6. Add indexes for performance: trainerId, subdomain, customDomain, email, startTime
-7. Create Prisma client singleton in `lib/prisma.ts`
-8. Run first migration: `npx prisma migrate dev --name init`
-9. Generate Prisma Client: `npx prisma generate`
-10. Test database connection with simple query
+```typescript
+'use client';
 
-**Acceptance Criteria**:
+import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { redirect } from 'next/navigation';
+import { DashboardSidebar } from '@/components/layout/dashboard-sidebar';
+import { DashboardHeader } from '@/components/layout/dashboard-header';
+import { LoadingSpinner } from '@/components/shared/loading-spinner';
+import { SessionProvider } from 'next-auth/react';
+import { QueryProvider } from '@/lib/providers/query-provider';
 
-- Database migrations run successfully
-- Prisma Studio opens with `npx prisma studio` showing all tables
-- Prisma Client can query database from Next.js API routes
-- All relationships (one-to-many, self-referential) work correctly
-- Indexes created for optimized queries
+function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
+  const { data: session, status } = useSession();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
----
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setIsSidebarOpen(false);
+      }
+    };
 
-### Iteration 1.3: NextAuth.js Configuration
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
-**Duration**: 3 days
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
 
-**User Stories**:
+  if (status === 'unauthenticated') {
+    redirect('/login');
+  }
 
-- As a new trainer, I want to register with email and password so that I can create an account
-- As a returning trainer, I want to log in with my credentials so that I can access my dashboard
-- As a trainer, I want to reset my password if I forget it so that I can regain access
+  if (!session?.user) {
+    return null;
+  }
 
-**Technical Tasks**:
+  const subscriptionTier = 'FREE';
 
-1. Install NextAuth.js v5: `npm install next-auth@beta`
-2. Create `lib/auth.ts` with NextAuth configuration:
-   - Credentials provider for email/password
-   - Prisma adapter for session storage
-   - JWT strategy with role inclusion
-   - Callbacks for user/session management
-3. Create API route: `app/api/auth/[...nextauth]/route.ts`
-4. Set up password hashing with bcryptjs: `npm install bcryptjs @types/bcryptjs`
-5. Create Zod schemas in `lib/validations/auth.ts`:
-   - LoginSchema (email, password)
-   - RegisterSchema (email, password, name, businessName)
-   - ResetPasswordSchema
-6. Build registration API: `app/api/auth/register/route.ts`
-   - Validate input with Zod
-   - Check for existing user
-   - Hash password
-   - Create User and Trainer records
-   - Generate unique subdomain from businessName
-7. Create login page: `app/(auth)/login/page.tsx`
-   - Form with React Hook Form
-   - Client-side validation
-   - Error message display
-   - Link to register and forgot password
-8. Create register page: `app/(auth)/register/page.tsx`
-   - Multi-field form (name, email, business name, password)
-   - Password strength indicator
-   - Terms of service checkbox
-9. Create forgot password flow:
-   - Request page with email input
-   - API route to generate reset token
-   - Email with reset link (using Resend)
-   - Reset page with new password form
-10. Create auth layout: `app/(auth)/layout.tsx`
-    - Centered card design
-    - TrainerDesk logo
-    - Background gradient
+  return (
+    <QueryProvider>
+      <div className="min-h-screen bg-gray-50">
+        <DashboardSidebar
+          subscriptionTier={subscriptionTier}
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+        />
 
-**Acceptance Criteria**:
+        <div className="lg:pl-64">
+          <DashboardHeader
+            user={{
+              name: session.user.name || 'User',
+              email: session.user.email || '',
+              profilePhoto: null,
+            }}
+            onMenuClick={() => setIsSidebarOpen(true)}
+          />
 
-- New trainers can successfully register and account is created in database
-- Registered trainers can log in and session is established
-- Invalid credentials show appropriate error messages
-- Password reset email is sent and reset process completes successfully
-- User redirected to dashboard after login
-- Session persists across page refreshes
-- Logout functionality clears session
+          <main className="p-4 lg:p-6">{children}</main>
+        </div>
+      </div>
+    </QueryProvider>
+  );
+}
 
----
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <SessionProvider>
+      <DashboardLayoutContent>{children}</DashboardLayoutContent>
+    </SessionProvider>
+  );
+}
+```
 
-## EPIC 2: Dashboard Layout & Core UI (Sprint 2 - Weeks 3-4)
+***
 
-### Iteration 2.1: Dashboard Layout Components
+## Step 2: Create Dashboard Stats API Endpoint
 
-**Duration**: 3 days
+### File: `src/app/api/dashboard/stats/route.ts`
+Create the API to fetch dashboard statistics:
 
-**User Stories**:
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { startOfWeek, startOfMonth, endOfWeek, endOfMonth, subMonths } from 'date-fns';
 
-- As a trainer, I want to see a navigation sidebar so that I can easily access different sections
-- As a trainer, I want a header with my profile menu so that I can access account settings
-- As a trainer, I want the interface to be responsive so that I can use it on mobile devices
+export async function GET(request: NextRequest) {
+  try {
+    const session = await auth();
 
-**Technical Tasks**:
+    if (!session?.user?.trainerId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
 
-1. Create dashboard layout: `app/(dashboard)/layout.tsx`
-   - Sidebar + main content area structure
-   - Protected route middleware
-   - Session check and redirect if unauthenticated
-2. Build sidebar component: `components/layout/dashboard-sidebar.tsx`
-   - Navigation items: Dashboard, Calendar, Bookings, Page Builder, Clients, Analytics, Settings
-   - Active state highlighting
-   - Icons from Lucide React: `npm install lucide-react`
-   - Collapsible on mobile (hamburger menu)
-   - Current plan badge at bottom (Free/Pro/Enterprise)
-   - Upgrade CTA for Free users
-3. Build header component: `components/layout/dashboard-header.tsx`
-   - Breadcrumb navigation
-   - User avatar with dropdown menu
-   - Dropdown items: Profile, Settings, Billing, Help, Logout
-   - Notification bell icon (placeholder for future)
-4. Add mobile responsiveness:
-   - Sidebar slides from left on mobile
-   - Overlay backdrop when open
-   - Close on navigation or backdrop click
-5. Create shared components:
-   - `components/shared/loading-spinner.tsx`
-   - `components/shared/error-message.tsx`
-   - `components/shared/empty-state.tsx`
+    const trainerId = session.user.trainerId;
 
-**Acceptance Criteria**:
+    // Date ranges
+    const now = new Date();
+    const weekStart = startOfWeek(now);
+    const weekEnd = endOfWeek(now);
+    const monthStart = startOfMonth(now);
+    const monthEnd = endOfMonth(now);
+    const lastMonthStart = startOfMonth(subMonths(now, 1));
+    const lastMonthEnd = endOfMonth(subMonths(now, 1));
 
-- Sidebar navigation works on desktop and mobile
-- Active route highlighted in sidebar
-- Header dropdown menu functions correctly
-- Only authenticated users can access dashboard
-- Layout is responsive from 320px to 2560px screens
-- Logout functionality returns user to login page
+    // Fetch all stats in parallel
+    const [
+      totalBookings,
+      confirmedBookings,
+      completedBookings,
+      cancelledBookings,
+      noShowBookings,
+      bookingsThisWeek,
+      bookingsThisMonth,
+      bookingsLastMonth,
+      activeClients,
+      totalClients,
+    ] = await Promise.all([
+      // Total bookings
+      prisma.booking.count({
+        where: { trainerId },
+      }),
 
----
+      // Confirmed bookings
+      prisma.booking.count({
+        where: {
+          trainerId,
+          status: 'CONFIRMED',
+        },
+      }),
 
-### Iteration 2.2: Dashboard Homepage & Stats Widgets
+      // Completed bookings
+      prisma.booking.count({
+        where: {
+          trainerId,
+          status: 'COMPLETED',
+        },
+      }),
 
-**Duration**: 3 days
+      // Cancelled bookings
+      prisma.booking.count({
+        where: {
+          trainerId,
+          status: 'CANCELLED',
+        },
+      }),
 
-**User Stories**:
+      // No-show bookings
+      prisma.booking.count({
+        where: {
+          trainerId,
+          status: 'NO_SHOW',
+        },
+      }),
 
-- As a trainer, I want to see key metrics at a glance so that I understand my business performance
-- As a trainer, I want to see my upcoming bookings so that I know my schedule
-- As a trainer, I want a welcome message so that the interface feels personalized
+      // Bookings this week
+      prisma.booking.count({
+        where: {
+          trainerId,
+          startTime: {
+            gte: weekStart,
+            lte: weekEnd,
+          },
+        },
+      }),
 
-**Technical Tasks**:
+      // Bookings this month
+      prisma.booking.count({
+        where: {
+          trainerId,
+          startTime: {
+            gte: monthStart,
+            lte: monthEnd,
+          },
+        },
+      }),
 
-1. Create dashboard page: `app/(dashboard)/dashboard/page.tsx`
-   - Personalized greeting with time-based message
-   - Grid layout for stats cards (4 columns on desktop, 1 on mobile)
-   - Upcoming sessions section
-   - Quick actions panel
-2. Build stats card component: `components/dashboard/stats-card.tsx`
-   - Reusable card accepting: title, value, icon, change percentage
-   - Color-coded icons with background circle
-   - Trending indicator (up/down arrow)
-3. Create API route: `app/api/dashboard/stats/route.ts`
-   - Query bookings count (today, week, month, all-time)
-   - Calculate active clients count
-   - Calculate no-show rate
-   - Calculate completion rate
-   - Return JSON response
-4. Fetch stats with React Query: `npm install @tanstack/react-query`
-   - Set up QueryClientProvider in root layout
-   - Create custom hook `lib/hooks/use-dashboard-stats.ts`
-   - Handle loading and error states
-5. Build upcoming bookings list: `components/dashboard/booking-list.tsx`
-   - Table showing next 5 bookings
-   - Columns: Client Name, Date, Time, Duration, Status
-   - Quick action buttons: View, Cancel, Mark Complete
-   - Link to full calendar view
-6. Create quick actions panel: `components/dashboard/quick-actions.tsx`
-   - Buttons: Create Booking, Edit Page, View Page, Invite Sub-Trainer
-   - Icons with labels
-   - Conditional rendering based on subscription tier
+      // Bookings last month
+      prisma.booking.count({
+        where: {
+          trainerId,
+          startTime: {
+            gte: lastMonthStart,
+            lte: lastMonthEnd,
+          },
+        },
+      }),
 
-**Acceptance Criteria**:
+      // Active clients (clients with at least one booking)
+      prisma.client.count({
+        where: {
+          trainerId,
+          bookings: {
+            some: {},
+          },
+        },
+      }),
 
-- Dashboard loads with real data from database
-- Stats cards display accurate numbers
-- Upcoming bookings show correct information
-- Loading skeletons display while data fetches
-- Error states handled gracefully
-- Quick actions navigate to correct pages
-- Mobile layout stacks vertically without horizontal scroll
+      // Total clients
+      prisma.client.count({
+        where: { trainerId },
+      }),
+    ]);
 
----
+    // Calculate total hours this week
+    const bookingsThisWeekData = await prisma.booking.findMany({
+      where: {
+        trainerId,
+        startTime: {
+          gte: weekStart,
+          lte: weekEnd,
+        },
+      },
+      select: {
+        duration: true,
+      },
+    });
 
-### Iteration 2.3: Settings Pages Foundation
+    const hoursThisWeek =
+      bookingsThisWeekData.reduce((acc, booking) => acc + booking.duration, 0) / 60;
 
-**Duration**: 2 days
+    // Calculate percentage changes
+    const bookingsChange =
+      bookingsLastMonth > 0
+        ? ((bookingsThisMonth - bookingsLastMonth) / bookingsLastMonth) * 100
+        : bookingsThisMonth > 0
+          ? 100
+          : 0;
 
-**User Stories**:
+    // Calculate completion rate
+    const completionRate =
+      totalBookings > 0 ? (completedBookings / totalBookings) * 100 : 0;
 
-- As a trainer, I want to update my profile information so that clients see accurate details
-- As a trainer, I want to configure my timezone so that bookings display correctly
+    // Calculate no-show rate
+    const noShowRate =
+      totalBookings > 0 ? (noShowBookings / totalBookings) * 100 : 0;
 
-**Technical Tasks**:
+    return NextResponse.json({
+      totalBookings,
+      confirmedBookings,
+      completedBookings,
+      cancelledBookings,
+      noShowBookings,
+      bookingsThisWeek,
+      bookingsThisMonth,
+      bookingsLastMonth,
+      bookingsChange: Math.round(bookingsChange),
+      activeClients,
+      totalClients,
+      hoursThisWeek: Math.round(hoursThisWeek * 10) / 10,
+      completionRate: Math.round(completionRate),
+      noShowRate: Math.round(noShowRate),
+      revenue: 0, // Placeholder - implement pricing later
+    });
+  } catch (error) {
+    console.error('Dashboard stats error:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch dashboard stats' },
+      { status: 500 }
+    );
+  }
+}
+```
 
-1. Create settings layout: `app/(dashboard)/settings/page.tsx`
-   - Hub page with cards linking to sub-sections
-   - Sections: Profile, Booking Preferences, Notifications, Domain, Billing
-2. Build profile settings page: `app/(dashboard)/settings/profile/page.tsx`
-   - Form fields: Name, Business Name, Bio, Phone, Timezone
-   - Profile photo upload (UploadThing integration)
-   - Timezone selector with auto-detection
-3. Install UploadThing: `npm install uploadthing @uploadthing/react`
-4. Create upload API: `app/api/uploadthing/route.ts`
-5. Create update profile API: `app/api/trainers/[trainerId]/route.ts`
-   - PATCH endpoint
-   - Zod validation for trainer profile
-   - Update database record
-   - Revalidate affected pages
-6. Build timezone selector: `components/shared/timezone-selector.tsx`
-   - Searchable dropdown
-   - Grouped by region
-   - Browser detection fallback
+***
 
-**Acceptance Criteria**:
+## Step 3: Create Custom React Query Hook
 
-- Profile form submits successfully and updates database
-- Profile photo uploads and displays correctly
-- Timezone changes reflect in booking times
-- Validation errors display inline
-- Success toast notification shows after save
-- Settings hub navigation works correctly
+### File: `src/lib/hooks/use-dashboard-stats.ts`
+Create a custom hook for fetching stats:
 
----
+```typescript
+import { useQuery } from '@tanstack/react-query';
+
+export interface DashboardStats {
+  totalBookings: number;
+  confirmedBookings: number;
+  completedBookings: number;
+  cancelledBookings: number;
+  noShowBookings: number;
+  bookingsThisWeek: number;
+  bookingsThisMonth: number;
+  bookingsLastMonth: number;
+  bookingsChange: number;
+  activeClients: number;
+  totalClients: number;
+  hoursThisWeek: number;
+  completionRate: number;
+  noShowRate: number;
+  revenue: number;
+}
+
+export function useDashboardStats() {
+  return useQuery<DashboardStats>({
+    queryKey: ['dashboard-stats'],
+    queryFn: async () => {
+      const response = await fetch('/api/dashboard/stats');
+      if (!response.ok) {
+        throw new Error('Failed to fetch dashboard stats');
+      }
+      return response.json();
+    },
+  });
+}
+```
+
+***
+
+## Step 4: Create Stats Card Component
+
+### File: `src/components/dashboard/stats-card.tsx`
+Create a reusable stats card:
+
+```typescript
+import { LucideIcon, TrendingUp, TrendingDown } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+
+interface StatsCardProps {
+  title: string;
+  value: string | number;
+  icon: LucideIcon;
+  change?: number;
+  changeLabel?: string;
+  iconColor?: string;
+  iconBgColor?: string;
+}
+
+export function StatsCard({
+  title,
+  value,
+  icon: Icon,
+  change,
+  changeLabel = 'from last month',
+  iconColor = 'text-blue-600',
+  iconBgColor = 'bg-blue-50',
+}: StatsCardProps) {
+  const isPositive = change !== undefined && change >= 0;
+  const hasChange = change !== undefined && change !== 0;
+
+  return (
+    <Card className="p-6">
+      <div className="flex items-center justify-between">
+        <div className="flex-1">
+          <p className="text-sm font-medium text-gray-600">{title}</p>
+          <p className="text-2xl font-bold text-gray-900 mt-2">{value}</p>
+          {change !== undefined && (
+            <div className="flex items-center gap-1 mt-1">
+              {hasChange && (
+                <>
+                  {isPositive ? (
+                    <TrendingUp className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <TrendingDown className="h-4 w-4 text-red-600" />
+                  )}
+                  <span
+                    className={cn(
+                      'text-sm font-medium',
+                      isPositive ? 'text-green-600' : 'text-red-600'
+                    )}
+                  >
+                    {isPositive ? '+' : ''}
+                    {change}%
+                  </span>
+                </>
+              )}
+              <span className="text-sm text-gray-600">{changeLabel}</span>
+            </div>
+          )}
+        </div>
+        <div
+          className={cn(
+            'h-12 w-12 rounded-full flex items-center justify-center',
+            iconBgColor
+          )}
+        >
+          <Icon className={cn('h-6 w-6', iconColor)} />
+        </div>
+      </div>
+    </Card>
+  );
+}
+```
+
+***
+
+## Step 5: Create Upcoming Bookings API
+
+### File: `src/app/api/dashboard/bookings/route.ts`
+Create API endpoint for upcoming bookings:
+
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+
+export async function GET(request: NextRequest) {
+  try {
+    const session = await auth();
+
+    if (!session?.user?.trainerId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const trainerId = session.user.trainerId;
+    const now = new Date();
+
+    // Fetch next 5 upcoming bookings
+    const bookings = await prisma.booking.findMany({
+      where: {
+        trainerId,
+        startTime: {
+          gte: now,
+        },
+        status: {
+          in: ['PENDING', 'CONFIRMED'],
+        },
+      },
+      include: {
+        client: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        startTime: 'asc',
+      },
+      take: 5,
+    });
+
+    return NextResponse.json(bookings);
+  } catch (error) {
+    console.error('Upcoming bookings error:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch upcoming bookings' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+***
+
+## Step 6: Create Custom Hook for Bookings
+
+### File: `src/lib/hooks/use-upcoming-bookings.ts`
+Create hook for upcoming bookings:
+
+```typescript
+import { useQuery } from '@tanstack/react-query';
+
+export interface UpcomingBooking {
+  id: string;
+  startTime: string;
+  endTime: string;
+  duration: number;
+  status: string;
+  client: {
+    id: string;
+    name: string;
+    email: string;
+  };
+}
+
+export function useUpcomingBookings() {
+  return useQuery<UpcomingBooking[]>({
+    queryKey: ['upcoming-bookings'],
+    queryFn: async () => {
+      const response = await fetch('/api/dashboard/bookings');
+      if (!response.ok) {
+        throw new Error('Failed to fetch upcoming bookings');
+      }
+      return response.json();
+    },
+  });
+}
+```
+
+***
+
+## Step 7: Create Booking List Component
+
+### File: `src/components/dashboard/booking-list.tsx`
+Create component to display upcoming bookings:
+
+```typescript
+import { format } from 'date-fns';
+import { Calendar, Clock, User } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/shared/empty-state';
+import Link from 'next/link';
+import { UpcomingBooking } from '@/lib/hooks/use-upcoming-bookings';
+
+interface BookingListProps {
+  bookings: UpcomingBooking[];
+}
+
+export function BookingList({ bookings }: BookingListProps) {
+  if (bookings.length === 0) {
+    return (
+      <Card className="p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          Upcoming Sessions
+        </h2>
+        <EmptyState
+          icon={Calendar}
+          title="No upcoming sessions"
+          description="You don't have any upcoming sessions scheduled."
+          action={
+            <Button asChild>
+              <Link href="/dashboard/bookings">View All Bookings</Link>
+            </Button>
+          }
+        />
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-gray-900">
+          Upcoming Sessions
+        </h2>
+        <Button variant="ghost" size="sm" asChild>
+          <Link href="/dashboard/bookings">View All</Link>
+        </Button>
+      </div>
+
+      <div className="space-y-3">
+        {bookings.map((booking) => (
+          <div
+            key={booking.id}
+            className="flex items-center justify-between p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-start gap-3">
+              <div className="h-10 w-10 rounded-full bg-blue-50 flex items-center justify-center">
+                <User className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">{booking.client.name}</p>
+                <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-4 w-4" />
+                    {format(new Date(booking.startTime), 'MMM d, yyyy')}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-4 w-4" />
+                    {format(new Date(booking.startTime), 'h:mm a')}
+                  </span>
+                  <span>{booking.duration} min</span>
+                </div>
+              </div>
+            </div>
+
+            <Badge
+              variant={booking.status === 'CONFIRMED' ? 'default' : 'secondary'}
+            >
+              {booking.status}
+            </Badge>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+```
+
+***
+
+## Step 8: Create Quick Actions Component
+
+### File: `src/components/dashboard/quick-actions.tsx`
+Create quick action buttons:
+
+```typescript
+import Link from 'next/link';
+import { Calendar, FileText, Eye, UserPlus } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+
+interface QuickActionsProps {
+  subscriptionTier: 'FREE' | 'PRO' | 'ENTERPRISE';
+}
+
+export function QuickActions({ subscriptionTier }: QuickActionsProps) {
+  const actions = [
+    {
+      label: 'Create Booking',
+      href: '/dashboard/bookings/new',
+      icon: Calendar,
+      color: 'bg-blue-600 hover:bg-blue-700',
+    },
+    {
+      label: 'Edit Page',
+      href: '/dashboard/page-builder',
+      icon: FileText,
+      color: 'bg-purple-600 hover:bg-purple-700',
+    },
+    {
+      label: 'View Page',
+      href: '/preview', // Will be trainer's public page
+      icon: Eye,
+      color: 'bg-green-600 hover:bg-green-700',
+      external: true,
+    },
+    {
+      label: 'Invite Sub-Trainer',
+      href: '/dashboard/settings/team',
+      icon: UserPlus,
+      color: 'bg-orange-600 hover:bg-orange-700',
+      disabled: subscriptionTier === 'FREE',
+    },
+  ];
+
+  return (
+    <Card className="p-6">
+      <h2 className="text-lg font-semibold text-gray-900 mb-4">
+        Quick Actions
+      </h2>
+      <div className="grid grid-cols-2 gap-3">
+        {actions.map((action) => {
+          const Icon = action.icon;
+          const isDisabled = action.disabled || false;
+
+          if (isDisabled) {
+            return (
+              <Button
+                key={action.label}
+                disabled
+                className="h-auto py-4 flex-col gap-2"
+                variant="outline"
+              >
+                <Icon className="h-5 w-5" />
+                <span className="text-sm">{action.label}</span>
+                <span className="text-xs text-gray-500">(Pro/Enterprise)</span>
+              </Button>
+            );
+          }
+
+          return (
+            <Button
+              key={action.label}
+              asChild
+              className={`h-auto py-4 flex-col gap-2 text-white ${action.color}`}
+            >
+              <Link
+                href={action.href}
+                target={action.external ? '_blank' : undefined}
+              >
+                <Icon className="h-5 w-5" />
+                <span className="text-sm">{action.label}</span>
+              </Link>
+            </Button>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+```
+
+***
+
+## Step 9: Update Dashboard Home Page
+
+### File: `src/app/(dashboard)/dashboard/page.tsx`
+Replace with full implementation using real data:
+
+```typescript
+'use client';
+
+import { Calendar, Users, Clock, TrendingUp } from 'lucide-react';
+import { StatsCard } from '@/components/dashboard/stats-card';
+import { BookingList } from '@/components/dashboard/booking-list';
+import { QuickActions } from '@/components/dashboard/quick-actions';
+import { LoadingSpinner } from '@/components/shared/loading-spinner';
+import { ErrorMessage } from '@/components/shared/error-message';
+import { useDashboardStats } from '@/lib/hooks/use-dashboard-stats';
+import { useUpcomingBookings } from '@/lib/hooks/use-upcoming-bookings';
+import { useSession } from 'next-auth/react';
+
+export default function DashboardPage() {
+  const { data: session } = useSession();
+  const { data: stats, isLoading: statsLoading, error: statsError } = useDashboardStats();
+  const { data: bookings, isLoading: bookingsLoading, error: bookingsError } = useUpcomingBookings();
+
+  // Get greeting based on time of day
+  const hour = new Date().getHours();
+  const greeting =
+    hour < 12
+      ? 'Good morning'
+      : hour < 18
+        ? 'Good afternoon'
+        : 'Good evening';
+
+  const firstName = session?.user?.name?.split(' ')[0] || 'there';
+
+  if (statsLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  if (statsError) {
+    return (
+      <ErrorMessage
+        title="Failed to load dashboard"
+        message="We couldn't load your dashboard statistics. Please try refreshing the page."
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Welcome Section */}
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">
+          {greeting}, {firstName}!
+        </h1>
+        <p className="text-gray-600 mt-1">
+          Here's what's happening with your training business today.
+        </p>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatsCard
+          title="Total Bookings"
+          value={stats?.totalBookings || 0}
+          icon={Calendar}
+          change={stats?.bookingsChange}
+          iconColor="text-blue-600"
+          iconBgColor="bg-blue-50"
+        />
+        <StatsCard
+          title="Active Clients"
+          value={stats?.activeClients || 0}
+          icon={Users}
+          iconColor="text-green-600"
+          iconBgColor="bg-green-50"
+        />
+        <StatsCard
+          title="Hours This Week"
+          value={stats?.hoursThisWeek || 0}
+          icon={Clock}
+          iconColor="text-purple-600"
+          iconBgColor="bg-purple-50"
+        />
+        <StatsCard
+          title="Revenue"
+          value={`$${stats?.revenue || 0}`}
+          icon={TrendingUp}
+          iconColor="text-orange-600"
+          iconBgColor="bg-orange-50"
+        />
+      </div>
+
+      {/* Content Grid */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Upcoming Bookings */}
+        {bookingsLoading ? (
+          <div className="flex items-center justify-center p-12">
+            <LoadingSpinner />
+          </div>
+        ) : bookingsError ? (
+          <ErrorMessage
+            title="Failed to load bookings"
+            message="We couldn't load your upcoming bookings."
+          />
+        ) : (
+          <BookingList bookings={bookings || []} />
+        )}
+
+        {/* Quick Actions */}
+        <QuickActions subscriptionTier="FREE" />
+      </div>
+    </div>
+  );
+}
+```
+
+***
+
+## Step 10: Create Skeleton Loading States
+
+### File: `src/components/dashboard/stats-card-skeleton.tsx`
+Create loading skeleton for stats cards:
+
+```typescript
+import { Card } from '@/components/ui/card';
+
+export function StatsCardSkeleton() {
+  return (
+    <Card className="p-6">
+      <div className="flex items-center justify-between">
+        <div className="flex-1 space-y-3">
+          <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+          <div className="h-8 w-16 bg-gray-200 rounded animate-pulse" />
+          <div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
+        </div>
+        <div className="h-12 w-12 rounded-full bg-gray-200 animate-pulse" />
+      </div>
+    </Card>
+  );
+}
+```
+
+***
+
+## Step 11: Install Missing Utilities
+
+Install date-fns if not already installed:
+
+```bash
+npm install date-fns
+```
+
+***
+
+## Step 12: Testing Procedures
+
+### 1. Start Development Server
+```bash
+npm run dev
+```
+
+### 2. Test with No Data
+1. Log in to dashboard
+2. Verify:
+   - ✅ Stats cards show "0" values
+   - ✅ "No upcoming sessions" empty state appears
+   - ✅ Quick actions display correctly
+   - ✅ No console errors
+
+### 3. Add Test Data via Prisma Studio
+```bash
+npx prisma studio
+```
+
+Create test data:
+1. **Add a client:**
+   - Name: "John Doe"
+   - Email: "john@example.com"
+   - trainerId: (your trainer ID)
+
+2. **Add a booking:**
+   - trainerId: (your trainer ID)
+   - clientId: (John's ID)
+   - startTime: (future date/time)
+   - endTime: (future date/time + 60 min)
+   - duration: 60
+   - status: "CONFIRMED"
+
+### 4. Test with Real Data
+1. Refresh dashboard
+2. Verify:
+   - ✅ Stats update with correct numbers
+   - ✅ Booking appears in upcoming sessions
+   - ✅ Client name displays correctly
+   - ✅ Date and time format correctly
+   - ✅ Status badge shows "CONFIRMED"
+
+### 5. Test React Query Features
+1. Open React Query DevTools (bottom right)
+2. Verify:
+   - ✅ Two queries visible: `dashboard-stats` and `upcoming-bookings`
+   - ✅ Query status shows "success"
+   - ✅ Data is cached
+
+### 6. Test Loading States
+1. Throttle network in DevTools (Slow 3G)
+2. Refresh page
+3. Verify:
+   - ✅ Loading spinner appears while fetching
+   - ✅ Smooth transition to data display
+
+### 7. Test Error Handling
+1. Stop your database or break the API endpoint temporarily
+2. Refresh page
+3. Verify:
+   - ✅ Error message displays appropriately
+   - ✅ No app crashes
+
+### 8. Test Percentage Changes
+1. Add more bookings with last month's dates
+2. Verify:
+   - ✅ Percentage change calculates correctly
+   - ✅ Green arrow for positive, red for negative
+   - ✅ No arrow for zero change
+
+***
+
+## Acceptance Criteria Checklist
+
+Before marking this iteration complete, verify all items:
+
+- ✅ Dashboard loads with real data from database
+- ✅ Stats cards display accurate numbers (bookings, clients, hours, revenue)
+- ✅ Percentage changes calculate correctly
+- ✅ Upcoming bookings list shows next 5 sessions
+- ✅ Empty state displays when no bookings exist
+- ✅ Quick actions panel renders with 4 buttons
+- ✅ Sub-trainer invite disabled for FREE tier
+- ✅ Loading spinners display during data fetch
+- ✅ Error states handled gracefully
+- ✅ React Query caching works correctly
+- ✅ Mobile layout responsive and functional
+- ✅ No TypeScript errors
+- ✅ No console errors
+
+***
+
+## Git Commit Instructions
+
+After completing all tests successfully:
+
+```bash
+git add .
+git commit -m "feat: Complete iteration 2.2 - Dashboard homepage & stats widgets
+
+- Set up React Query provider with devtools
+- Create dashboard stats API endpoint with parallel queries
+- Create upcoming bookings API endpoint
+- Build custom React Query hooks for data fetching
+- Create reusable stats card component with trend indicators
+- Create booking list component with empty states
+- Create quick actions panel with subscription-aware buttons
+- Update dashboard page with real data integration
+- Add loading and error state handling
+- Implement date formatting with date-fns
+- Add skeleton loading states for better UX
+- Test with real database data
+- Verify React Query caching and refetching
+
+Dashboard now displays live business metrics and upcoming sessions."
+
+git push origin main
+```
+
+***
+
+## Next Iteration Preview
+
+After completing Iteration 2.2, you will move to **Iteration 2.3 - Settings Pages Foundation**, which includes:
+- Settings hub page with navigation cards
+- Profile settings with photo upload
+- Timezone configuration
+- Form validation and updates
+- UploadThing integration
+
+***
+
+## Common Issues and Solutions
+
+### Issue: "trainerId is null in session"
+**Solution:** Ensure user has a linked trainer record. Check auth callback in `lib/auth.ts`.
+
+### Issue: Stats return empty data
+**Solution:** Verify trainerId matches bookings/clients in database. Use Prisma Studio to confirm.
+
+### Issue: React Query not refetching
+**Solution:** Check `staleTime` in QueryClient config. Use React Query DevTools to debug.
+
+### Issue: Date formatting errors
+**Solution:** Ensure dates from API are ISO strings. Parse with `new Date()` before formatting.
+
+***
+
+**Ready to build live dashboard stats? Start with Step 1 and bring your dashboard to life with real data! 🚀**
+
+[1](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/collection_6ba31f49-2cde-418d-ac44-89d5ef1b3a10/8b509f6c-2e80-4dcd-883c-95d4b148fde0/epics-1-and-2.md)
+[2](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/collection_6ba31f49-2cde-418d-ac44-89d5ef1b3a10/ca806679-19d4-4e56-b4a0-980eb050c555/trainerdesk-documentation.md)
+[3](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/collection_6ba31f49-2cde-418d-ac44-89d5ef1b3a10/59df1bc6-cad8-4890-8242-1dc834601e12/epic-3.md)
+[4](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/collection_6ba31f49-2cde-418d-ac44-89d5ef1b3a10/13b1e4c5-5493-4304-af66-8bc673344dad/epic-4.md)
+[5](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/collection_6ba31f49-2cde-418d-ac44-89d5ef1b3a10/14491e1f-233a-4b6b-937c-fb7efa07b47a/epic-5.md)
+[6](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/collection_6ba31f49-2cde-418d-ac44-89d5ef1b3a10/65aaac5b-133f-4d19-8dd2-04d33c6e7bc7/epic-6.md)
+[7](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/collection_6ba31f49-2cde-418d-ac44-89d5ef1b3a10/a48d1a13-e997-49e1-b176-cefb46badeb6/epic-7.md)
+[8](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/collection_6ba31f49-2cde-418d-ac44-89d5ef1b3a10/874c7d1b-cf67-4f87-b947-1cae5a2a9866/epic-8.md)
+[9](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/collection_6ba31f49-2cde-418d-ac44-89d5ef1b3a10/530b6b0b-e8b6-4fbc-82cd-fa286c6c65cd/epic-9.md)

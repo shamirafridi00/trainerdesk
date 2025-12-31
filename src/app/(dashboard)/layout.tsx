@@ -7,6 +7,7 @@ import { DashboardSidebar } from '@/components/layout/dashboard-sidebar';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
 import { LoadingSpinner } from '@/components/shared/loading-spinner';
 import { SessionProvider } from 'next-auth/react';
+import { QueryProvider } from '@/lib/providers/query-provider';
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
@@ -44,30 +45,32 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const subscriptionTier = 'FREE'; // Placeholder - will fetch from trainer data later
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Sidebar */}
-      <DashboardSidebar
-        subscriptionTier={subscriptionTier}
-        isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
-      />
-
-      {/* Main Content Area */}
-      <div className="lg:pl-64">
-        {/* Header */}
-        <DashboardHeader
-          user={{
-            name: session.user.name || 'User',
-            email: session.user.email || '',
-            profilePhoto: null, // Will add this later
-          }}
-          onMenuClick={() => setIsSidebarOpen(true)}
+    <QueryProvider>
+      <div className="min-h-screen bg-gray-50">
+        {/* Sidebar */}
+        <DashboardSidebar
+          subscriptionTier={subscriptionTier}
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
         />
 
-        {/* Page Content */}
-        <main className="p-4 lg:p-6">{children}</main>
+        {/* Main Content Area */}
+        <div className="lg:pl-64">
+          {/* Header */}
+          <DashboardHeader
+            user={{
+              name: session.user.name || 'User',
+              email: session.user.email || '',
+              profilePhoto: null, // Will add this later
+            }}
+            onMenuClick={() => setIsSidebarOpen(true)}
+          />
+
+          {/* Page Content */}
+          <main className="p-4 lg:p-6">{children}</main>
+        </div>
       </div>
-    </div>
+    </QueryProvider>
   );
 }
 
